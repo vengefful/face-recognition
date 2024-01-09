@@ -4,6 +4,8 @@ import sys
 import numpy as np
 import simpleaudio as sa
 import requests
+import pickle
+import os.path
 from datetime import date, datetime, time
 from PIL import Image, ImageOps
 
@@ -101,16 +103,25 @@ video_capture = cv2.VideoCapture(0)
 # Create arrays of known face encodings and their names
 
 for aluno in lista_alunos:
+    print(aluno['foto'])
+    codificacao = ""
 
-    if (tem_orientacao_exif(aluno['foto'])):
-        image = Image.open(aluno['foto'])
-        image = ImageOps.exif_transpose(image)
-        image.save(aluno['foto'])
+    if not os.path.exists(f"Codificacoes/{aluno['matricula']}.pkl"):
+        if (tem_orientacao_exif(aluno['foto'])):
+            image = Image.open(aluno['foto'])
+            image = ImageOps.exif_transpose(image)
+            image.save(aluno['foto'])
+
+        codificacao = face_recognition.face_encodings(face_recognition.load_image_file(aluno['foto']))[0]
+        with open(f"Codificacoes/{aluno['matricula']}.pkl", 'wb') as file:
+            pickle.dump(codificacao, file)
+    else:
+        with open(f"Codificacoes/{aluno['matricula']}.pkl", 'rb') as arquivo:
+            codificacao = pickle.load(arquivo)
 
     matricula = aluno['matricula']
     foto = aluno['foto']
     nome = aluno['nome']
-    codificacao = face_recognition.face_encodings(face_recognition.load_image_file(foto))[0]
     alunos_conhecidos[matricula] = {'codificacao': codificacao, 'nome': nome}
 
 # alunos_conhecidos = {
@@ -154,7 +165,7 @@ while True:
             turma = ""
             data = ""
             for matricula, aluno_info in alunos_conhecidos.items():
-                matches = face_recognition.compare_faces([aluno_info["codificacao"]], face_encoding)
+                matches = face_recognition.compare_faces([aluno_info["codificacao"]], face_encoding, tolerance=0.5)
 
                 if matches[0]:
                     name = aluno_info["nome"]
